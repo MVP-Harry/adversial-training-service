@@ -1,8 +1,9 @@
 import torch
 
 
-def FGSM_attack(model, dataloader, from_logits = True, loss_fn = torch.nn.CrossEntropyLoss(), epsilon = 0.001):
+def FGSM_attack(model, dataloader, total_batches, from_logits = True, loss_fn = torch.nn.CrossEntropyLoss(), epsilon = 0.001):
 	generated_images = []
+	original_labels = []
 	model.eval()
 	percent_change = 0
 	count = 0
@@ -15,20 +16,23 @@ def FGSM_attack(model, dataloader, from_logits = True, loss_fn = torch.nn.CrossE
 		if from_logits:
 			outputs = torch.nn.functional.softmax(outputs, dim = 1)
 		loss = loss_fn(outputs, y)
+		print(y.size())
 		loss.backward()
 		data_grad = data.grad.data
 		perturbed_images = data + epsilon * data_grad.sign()
 		generated_images.append(perturbed_images)
+		original_labels.append(y)
 		count += 1
 		if count >= total_batches:
 			break
-	return generated_images
+	return generated_images, original_labels
 
 
 def PGD_attack(model, dataloader, total_batches, iterations, from_logits = True, loss_fn = torch.nn.CrossEntropyLoss(), epsilon = 0.001):
 	count = 0
 	percent_change = 0
 	generated_images = []
+	original_labels = []
 	for batch in dataloader:
 		x, y = batch
 		data = x.clone().detach()
@@ -45,13 +49,16 @@ def PGD_attack(model, dataloader, total_batches, iterations, from_logits = True,
 			perturbed_images = data + epsilon * data_grad
 		count += 1
 		generated_images.append(perturbed_images)
+		original_labels.append(y)
 		if count >= total_batches:
 			break
-	return generated_images
+	return generated_images, original_labels
 
 def targeted_adversarial_attack(model, dataloader, total_batches, iterations, target_label, from_logits = True, loss_fn = torch.nn.CrossEntropyLoss()):
 	count = 0
 	percent_change = 0
+	generated_images = []
+	original_labels = []
 	for batch in dataloader:
 		x, y = batch
 		data = x.clone().detach()
@@ -71,10 +78,11 @@ def targeted_adversarial_attack(model, dataloader, total_batches, iterations, ta
 		new_preds = model(data)
 		count += 1
 		generated_images.append(data)
+		original_labels.append(y)
 		if count >= total_batches:
 			break
 
-	return generated_images
+	return generated_images, original_labels
 
 
 
