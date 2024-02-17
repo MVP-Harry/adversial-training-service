@@ -13,7 +13,7 @@ def FGSM_attack(model, dataloader, from_logits = True, loss_fn = torch.nn.CrossE
 		data.requires_grad = True
 		outputs = model(data)
 		if from_logits:
-			outputs = torch.nn.functional.sigmoid(outputs)
+			outputs = torch.nn.functional.sigmoid(outputs, dim = 1)
 		loss = torch.nn.CrossEntropyLoss(outputs, y)
 		data_grad = data.grad.data
 		perturbed_image = data + epsilon * data_grad.sign()
@@ -34,7 +34,7 @@ def PGD_attack(model, dataloader, iterations, from_logits = True, loss_fn = torc
 			data.requires_grad = True
 			outputs = model(data)
 			if from_logits:
-				outputs = torch.nn.functional.sigmoid(outputs)
+				outputs = torch.nn.functional.softmax(outputs, dim = 1)
 			loss = torch.nn.CrossEntropyLoss(outputs, y)
 			data_grad = data.grad.data
 			perturbed_image = data + epsilon * data_grad
@@ -42,3 +42,31 @@ def PGD_attack(model, dataloader, iterations, from_logits = True, loss_fn = torc
 		percent_change += torch.sum(torch.heaviside(torch.abs(new_preds - original_preds), values = 0)) / original_preds.size()[0]
 		count += 1
 	return generated_images, percent_change
+
+def targeted_adversarial_attack(model, dataloader, iterations, target_label, from_logits = True, loss_fn = torch.nn.CrossEntropyLoss()):
+	for batch in dataloader:
+		original_preds = model(data)
+
+		for i in range(iterations):
+			x, y = batch
+			data = x.clone().detach()
+			data.requires_grad = True
+			outputs = model(data)
+			optimizer = torch.optim.Adam(list([data, ]), maximize = False)
+			if from_logits:
+				outputs = torch.nn.functional.softmax(outputs, dim = 1)
+			labels = target_label
+			loss = torch.nn.CrossEntropyLoss(outputs, labels)
+			loss.backward()
+    		optimizer.step()
+		new_preds = model(perturbed_image)
+		percent_change += torch.sum(torch.heaviside(torch.abs(new_preds - original_preds), values = 0)) / original_preds.size()[0]
+		count += 1
+	return generated_images, percent_change
+
+
+
+  
+
+
+
