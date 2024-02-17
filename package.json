@@ -19,6 +19,7 @@
     "css-loader": "^6.10.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^10.18.0",
+    "node-fetch": "^3.3.2",
     "postcss": "^8.4.35",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
