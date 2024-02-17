@@ -36,6 +36,10 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 		self.end_headers()
 		reponse = pickle.dumps(response_dict)
 		self.wfile.write(response.encode('utf-8'))
+
+	def end_headers (self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        SimpleHTTPRequestHandler.end_headers(self)
 			
 
 def run(server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler, addr="localhost", port=8000):

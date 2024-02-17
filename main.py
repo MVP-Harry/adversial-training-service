@@ -12,6 +12,22 @@ label_map = {7 : 574, 0: 482, 8:701, 9:0, 6:571, 2:497, 3:217, 1:491, 4:566, 5:5
 #tester
 if __name__ == '__main__':
 
+	def fix_your_buggy_image_dataset(dataset, self_transform, transform):
+		length = dataset.__len__()
+		sample_batch = dataset.__getitem__(0)
+		dummy_x, dummy_y = sample_batch
+		dummy_shape = self_transform(dummy_x).shape
+
+
+		big_x = torch.zeros((length, dummy_shape[0], dummy_shape[1], dummy_shape[2]), dtype = torch.uint8)
+		big_y = torch.zeros((length, 1), dtype = torch.int32)
+		for i in range(length):
+			batch = dataset.__getitem__(i)
+			x, y = batch
+			big_x[i] = self_transform(x)
+			big_y[i] = y
+			print(i)
+		return ImageDataset(big_x, big_y, transform = transform)
 	class ImageDataset(torch.utils.data.Dataset):
 
 		def __init__(self, data, labels, transform=None, target_transform=None):
@@ -35,12 +51,17 @@ if __name__ == '__main__':
 			labels[p2] = 1
 			return data, labels
 
+
+
 	model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
 	dataset = torch.load("../dataset.pt")
 	dataloader = torch.utils.data.DataLoader(dataset, batch_size = 8, shuffle = True)
 	identifier = "golf ball"
 	labels = torch.zeros((8, 1000))
 	labels[:, categories.index(identifier)] = 1
+	model.eval()
+	for x, y in dataloader:
+
 
 
 	generated_images, original_labels, running_loss = FGSM.FGSM_attack(model, dataloader, 1)
@@ -48,7 +69,7 @@ if __name__ == '__main__':
 	torch.save(generated_images, "../FGSM.pt")
 	torch.save(original_labels, "../FGSM_labels.pt")
 
-	generated_images, original_labels, running_loss = FGSM.PGD_attack(model, dataloader, 1, 10)
+	generated_images, original_labels, running_loss = FGSM.PGD_attack(model, dataloader, 1, 100)
 	print(running_loss)
 	torch.save(generated_images, "../PGD.pt")
 	torch.save(original_labels, "../PGD_labels.pt")
