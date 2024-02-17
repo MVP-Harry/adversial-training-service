@@ -13,56 +13,68 @@ def FGSM_attack(model, dataloader, from_logits = True, loss_fn = torch.nn.CrossE
 		data.requires_grad = True
 		outputs = model(data)
 		if from_logits:
-			outputs = torch.nn.functional.sigmoid(outputs, dim = 1)
-		loss = torch.nn.CrossEntropyLoss(outputs, y)
+			outputs = torch.nn.functional.softmax(outputs, dim = 1)
+		loss = loss_fn(outputs, y)
+		loss.backward()
 		data_grad = data.grad.data
-		perturbed_image = data + epsilon * data_grad.sign()
-		new_preds = model(perturbed_image)
+		perturbed_images = data + epsilon * data_grad.sign()
 		generated_images.append(perturbed_images)
-		percent_change += torch.sum(torch.heaviside(torch.abs(new_preds - original_preds), values = 0)) / original_preds.size()[0]
 		count += 1
-	percent_change = percent_change / count
-	return generated_images, percent_change
+		if count >= total_batches:
+			break
+	return generated_images
 
 
-def PGD_attack(model, dataloader, iterations, from_logits = True, loss_fn = torch.nn.CrossEntropyLoss(), epsilon = 0.001):
+def PGD_attack(model, dataloader, total_batches, iterations, from_logits = True, loss_fn = torch.nn.CrossEntropyLoss(), epsilon = 0.001):
+	count = 0
+	percent_change = 0
+	generated_images = []
 	for batch in dataloader:
+		x, y = batch
+		data = x.clone().detach()
+		data.requires_grad = True
 		original_preds = model(data)
-		for i in range(iterations):
-			x, y = batch
-			data = x.clone().detach()
-			data.requires_grad = True
+
+		for i in range(iterations):			
 			outputs = model(data)
 			if from_logits:
 				outputs = torch.nn.functional.softmax(outputs, dim = 1)
-			loss = torch.nn.CrossEntropyLoss(outputs, y)
+			loss = loss_fn(outputs, y)
+			loss.backward()
 			data_grad = data.grad.data
-			perturbed_image = data + epsilon * data_grad
-		new_preds = model(perturbed_image)
-		percent_change += torch.sum(torch.heaviside(torch.abs(new_preds - original_preds), values = 0)) / original_preds.size()[0]
+			perturbed_images = data + epsilon * data_grad
 		count += 1
-	return generated_images, percent_change
+		generated_images.append(perturbed_images)
+		if count >= total_batches:
+			break
+	return generated_images
 
-def targeted_adversarial_attack(model, dataloader, iterations, target_label, from_logits = True, loss_fn = torch.nn.CrossEntropyLoss()):
+def targeted_adversarial_attack(model, dataloader, total_batches, iterations, target_label, from_logits = True, loss_fn = torch.nn.CrossEntropyLoss()):
+	count = 0
+	percent_change = 0
 	for batch in dataloader:
+		x, y = batch
+		data = x.clone().detach()
+		data.requires_grad = True
 		original_preds = model(data)
 
 		for i in range(iterations):
-			x, y = batch
-			data = x.clone().detach()
-			data.requires_grad = True
+			
 			outputs = model(data)
 			optimizer = torch.optim.Adam(list([data, ]), maximize = False)
 			if from_logits:
 				outputs = torch.nn.functional.softmax(outputs, dim = 1)
 			labels = target_label
-			loss = torch.nn.CrossEntropyLoss(outputs, labels)
+			loss = loss_fn(outputs, labels)
 			loss.backward()
-    		optimizer.step()
-		new_preds = model(perturbed_image)
-		percent_change += torch.sum(torch.heaviside(torch.abs(new_preds - original_preds), values = 0)) / original_preds.size()[0]
+			optimizer.step()
+		new_preds = model(data)
 		count += 1
-	return generated_images, percent_change
+		generated_images.append(data)
+		if count >= total_batches:
+			break
+
+	return generated_images
 
 
 
